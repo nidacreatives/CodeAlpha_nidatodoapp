@@ -44,11 +44,17 @@ function LightningBolt({ style }) {
 }
 
 export default function TodoPage() {
+  // ── user name ──
+  const [userName, setUserName] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+
+  // ── todos ──
   const [todos, setTodos] = useState([
     {
       id: 1,
       text: "Set up Next.js project",
-      done: true,
+      done: false,
       priority: "high",
       category: "💼 Work",
       createdAt: Date.now() - 86400000,
@@ -57,7 +63,7 @@ export default function TodoPage() {
     {
       id: 2,
       text: "Design UI with color theme",
-      done: true,
+      done: false,
       priority: "medium",
       category: "📚 Study",
       createdAt: Date.now() - 43200000,
@@ -87,6 +93,7 @@ export default function TodoPage() {
   const [category, setCategory] = useState("⭐ Personal");
   const [dueDate, setDueDate] = useState("");
   const [filter, setFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [editId, setEditId] = useState(null);
@@ -99,10 +106,27 @@ export default function TodoPage() {
   const [mounted, setMounted] = useState(false);
   const [darkPulse, setDarkPulse] = useState(false);
   const inputRef = useRef(null);
+  const nameRef = useRef(null);
   const celebTimer = useRef(null);
 
+  // ── on mount: check for saved name ──
   useEffect(() => {
     setMounted(true);
+
+    // check sessionStorage for name this visit
+    try {
+      const saved = sessionStorage.getItem("todo_username");
+      if (saved) {
+        setUserName(saved);
+      } else {
+        // show name prompt after short delay
+        setTimeout(() => setShowNamePrompt(true), 600);
+      }
+    } catch {
+      setTimeout(() => setShowNamePrompt(true), 600);
+    }
+
+    // particles
     setParticles(
       Array.from({ length: 22 }, (_, i) => ({
         id: i,
@@ -113,6 +137,9 @@ export default function TodoPage() {
         op: Math.random() * 0.14 + 0.04,
       })),
     );
+
+    // lightning
+    let tid;
     const spawnBolt = () => {
       setBolts(
         Array.from({ length: Math.floor(Math.random() * 3) + 1 }, (_, i) => ({
@@ -129,7 +156,6 @@ export default function TodoPage() {
         setDarkPulse(false);
       }, 200);
     };
-    let tid;
     const schedule = () => {
       tid = setTimeout(
         () => {
@@ -143,6 +169,31 @@ export default function TodoPage() {
     return () => clearTimeout(tid);
   }, []);
 
+  // focus name input when prompt shows
+  useEffect(() => {
+    if (showNamePrompt) setTimeout(() => nameRef.current?.focus(), 100);
+  }, [showNamePrompt]);
+
+  const saveName = () => {
+    const n = nameInput.trim();
+    if (!n) return;
+    setUserName(n);
+    try {
+      sessionStorage.setItem("todo_username", n);
+    } catch {}
+    setShowNamePrompt(false);
+  };
+
+  const changeName = () => {
+    try {
+      sessionStorage.removeItem("todo_username");
+    } catch {}
+    setNameInput(userName);
+    setUserName("");
+    setShowNamePrompt(true);
+  };
+
+  // ── celebration ──
   const triggerCelebration = useCallback((text) => {
     setCelebTask(text);
     setShowCeleb(true);
@@ -238,6 +289,8 @@ export default function TodoPage() {
     ? Math.round((doneCount / todos.length) * 100)
     : 0;
 
+  const displayName = userName || "User";
+
   return (
     <>
       <style>{`
@@ -274,6 +327,23 @@ export default function TodoPage() {
           100% { opacity: 0; }
         }
 
+        /* NAME PROMPT OVERLAY */
+        .name-overlay { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); animation: ov-in 0.4s ease both; }
+        @keyframes ov-in { from { opacity: 0; } to { opacity: 1; } }
+        .name-box { background: linear-gradient(135deg, rgba(0,0,0,0.97), rgba(37,57,0,0.97)); border: 2px solid #08cb00; border-radius: 24px; padding: 48px 40px 40px; text-align: center; max-width: 400px; width: 90%; box-shadow: 0 0 60px rgba(8,203,0,0.35), 0 0 120px rgba(8,203,0,0.12); animation: box-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both; position: relative; }
+        .name-glow { position: absolute; inset: -2px; border-radius: 26px; pointer-events: none; animation: glow-pulse 1.2s ease-in-out infinite alternate; }
+        @keyframes glow-pulse { from { box-shadow: 0 0 20px #08cb00, 0 0 40px rgba(8,203,0,0.2); } to { box-shadow: 0 0 40px #08cb00, 0 0 80px rgba(8,203,0,0.4); } }
+        @keyframes box-pop { from { opacity: 0; transform: scale(0.6) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .name-icon { font-size: 3rem; display: block; margin-bottom: 14px; }
+        .name-title { font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 900; color: #08cb00; text-shadow: 0 0 16px #08cb00; margin-bottom: 8px; }
+        .name-sub { font-size: 0.9rem; color: rgba(238,238,238,0.55); margin-bottom: 24px; line-height: 1.5; }
+        .name-input { width: 100%; background: rgba(37,57,0,0.4); border: 2px solid rgba(8,203,0,0.4); border-radius: 12px; padding: 13px 18px; font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; color: #eee; outline: none; text-align: center; letter-spacing: 0.05em; transition: border-color 0.2s, box-shadow 0.2s; margin-bottom: 16px; }
+        .name-input::placeholder { color: rgba(238,238,238,0.25); }
+        .name-input:focus { border-color: #08cb00; box-shadow: 0 0 0 3px rgba(8,203,0,0.12), 0 0 20px rgba(8,203,0,0.1); }
+        .name-btn { width: 100%; background: linear-gradient(135deg, #253900, #08cb00); border: none; border-radius: 12px; padding: 14px; color: #000; font-family: 'Orbitron', monospace; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.08em; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(8,203,0,0.3); }
+        .name-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(8,203,0,0.45); }
+        .name-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
         /* PAGE */
         .page { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 16px 100px; }
 
@@ -283,8 +353,10 @@ export default function TodoPage() {
         .badge { display: inline-block; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: #08cb00; border: 1px solid rgba(8,203,0,0.3); border-radius: 100px; padding: 5px 16px; margin-bottom: 14px; background: rgba(8,203,0,0.06); box-shadow: 0 0 12px rgba(8,203,0,0.1); }
         h1 { font-family: 'Orbitron', monospace; font-size: clamp(2.2rem, 7vw, 4rem); font-weight: 900; letter-spacing: -0.02em; line-height: 1; color: #eee; text-shadow: 0 0 40px rgba(8,203,0,0.3); }
         h1 .accent { color: #08cb00; text-shadow: 0 0 20px #08cb00, 0 0 40px #08cb00; }
-        .byline { margin-top: 10px; font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(8,203,0,0.5); }
-        .byline span { color: #08cb00; font-weight: 700; font-size: 0.95rem; }
+        .welcome-line { margin-top: 10px; font-size: 0.95rem; color: rgba(238,238,238,0.5); }
+        .welcome-line span { color: #08cb00; font-weight: 700; font-size: 1rem; }
+        .change-name-btn { background: transparent; border: none; color: rgba(8,203,0,0.45); font-size: 0.7rem; cursor: pointer; text-decoration: underline; font-family: 'Rajdhani', sans-serif; margin-left: 6px; transition: color 0.2s; }
+        .change-name-btn:hover { color: #08cb00; }
 
         /* STATS */
         .stats-row { display: flex; gap: 10px; margin-bottom: 18px; width: 100%; max-width: 600px; animation: fade-up 0.6s 0.2s both; }
@@ -306,20 +378,25 @@ export default function TodoPage() {
         .prog-fill::after { content: ''; position: absolute; right: -1px; top: 50%; transform: translateY(-50%); width: 12px; height: 12px; border-radius: 50%; background: #08cb00; box-shadow: 0 0 8px #08cb00; }
 
         /* SEARCH */
-        .search-row { margin-bottom: 14px; position: relative; }
+        .search-row { margin-bottom: 14px; display: flex; gap: 8px; }
+        .search-wrap { flex: 1; position: relative; }
         .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: 0.4; font-size: 13px; }
         .search-input { width: 100%; background: rgba(37,57,0,0.22); border: 1px solid rgba(8,203,0,0.18); border-radius: 12px; padding: 11px 14px 11px 38px; font-family: 'Rajdhani', sans-serif; font-size: 0.95rem; color: #eee; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
         .search-input::placeholder { color: rgba(238,238,238,0.22); }
-        .search-input:focus { border-color: rgba(8,203,0,0.5); box-shadow: 0 0 0 3px rgba(8,203,0,0.07), 0 0 16px rgba(8,203,0,0.08); }
+        .search-input:focus { border-color: rgba(8,203,0,0.5); box-shadow: 0 0 0 3px rgba(8,203,0,0.07); }
+        .search-btn { background: linear-gradient(135deg, #253900, #08cb00); border: none; border-radius: 12px; padding: 11px 18px; color: #000; font-family: 'Orbitron', monospace; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; white-space: nowrap; box-shadow: 0 4px 12px rgba(8,203,0,0.2); }
+        .search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(8,203,0,0.35); }
+        .clear-search-btn { background: rgba(200,50,50,0.2); border: 1px solid rgba(200,50,50,0.3); border-radius: 12px; padding: 11px 14px; color: #e07070; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+        .clear-search-btn:hover { background: rgba(200,50,50,0.3); }
 
         /* ADD FORM */
         .add-section { margin-bottom: 18px; }
         .input-row { display: flex; gap: 8px; margin-bottom: 10px; }
         .todo-input { flex: 1; background: rgba(37,57,0,0.28); border: 1px solid rgba(8,203,0,0.22); border-radius: 12px; padding: 12px 16px; font-family: 'Rajdhani', sans-serif; font-size: 0.98rem; color: #eee; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
         .todo-input::placeholder { color: rgba(238,238,238,0.22); }
-        .todo-input:focus { border-color: #08cb00; box-shadow: 0 0 0 3px rgba(8,203,0,0.1), 0 0 18px rgba(8,203,0,0.07); }
+        .todo-input:focus { border-color: #08cb00; box-shadow: 0 0 0 3px rgba(8,203,0,0.1); }
         .add-btn { background: linear-gradient(135deg, #253900, #08cb00); border: none; border-radius: 12px; padding: 12px 22px; color: #000; font-family: 'Orbitron', monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(8,203,0,0.25); white-space: nowrap; }
-        .add-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(8,203,0,0.4), 0 0 28px rgba(8,203,0,0.18); }
+        .add-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(8,203,0,0.4); }
         .add-btn:active { transform: scale(0.96); }
         .meta-row { display: flex; gap: 8px; flex-wrap: wrap; }
         .meta-select { flex: 1; min-width: 100px; background: rgba(37,57,0,0.22); border: 1px solid rgba(8,203,0,0.16); border-radius: 10px; padding: 8px 10px; font-family: 'Rajdhani', sans-serif; font-size: 0.88rem; color: #eee; outline: none; cursor: pointer; }
@@ -347,13 +424,11 @@ export default function TodoPage() {
         @keyframes item-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: translateX(0); } }
         .todo-item:hover { background: rgba(8,203,0,0.055); border-color: rgba(8,203,0,0.22); transform: translateX(2px); }
         .todo-item.done { opacity: 0.48; }
-
         .check-btn { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; border: 2px solid rgba(8,203,0,0.45); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; margin-top: 1px; }
         .check-btn.checked { background: #08cb00; border-color: #08cb00; box-shadow: 0 0 10px #08cb00, 0 0 22px rgba(8,203,0,0.3); }
         .check-btn:hover { transform: scale(1.14); box-shadow: 0 0 10px rgba(8,203,0,0.28); }
         .check-icon { width: 12px; height: 12px; stroke: #000; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transition: opacity 0.18s; }
         .check-btn.checked .check-icon { opacity: 1; }
-
         .todo-body { flex: 1; min-width: 0; }
         .todo-meta { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
         .cat-badge { font-size: 0.68rem; padding: 2px 7px; background: rgba(37,57,0,0.55); border: 1px solid rgba(8,203,0,0.18); border-radius: 100px; color: rgba(238,238,238,0.55); white-space: nowrap; }
@@ -363,7 +438,6 @@ export default function TodoPage() {
         .todo-item.done .todo-text { text-decoration: line-through; color: rgba(238,238,238,0.28); }
         .todo-time { font-size: 0.65rem; color: rgba(238,238,238,0.18); margin-top: 4px; }
         .edit-input { width: 100%; background: rgba(37,57,0,0.4); border: 1px solid #08cb00; border-radius: 8px; padding: 6px 10px; font-family: 'Rajdhani', sans-serif; font-size: 1rem; color: #eee; outline: none; }
-
         .todo-actions { display: flex; flex-direction: column; gap: 4px; opacity: 0; transition: opacity 0.2s; }
         .todo-item:hover .todo-actions { opacity: 1; }
         .act-btn { background: transparent; border: none; padding: 3px; cursor: pointer; color: rgba(238,238,238,0.32); font-size: 13px; transition: color 0.2s, transform 0.15s; display: flex; align-items: center; justify-content: center; }
@@ -380,17 +454,15 @@ export default function TodoPage() {
 
         /* CELEBRATION */
         .celeb-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.65); backdrop-filter: blur(5px); animation: ov-in 0.3s ease both; }
-        @keyframes ov-in { from { opacity: 0; } to { opacity: 1; } }
         .celeb-confetti-item { position: absolute; border-radius: 2px; animation: conf-fall 2.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; opacity: 0; }
         @keyframes conf-fall { 0% { transform: translateY(0) rotate(var(--r)); opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(calc(100vh + 50px)) rotate(calc(var(--r) + 720deg)); opacity: 0; } }
         .celeb-box { position: relative; background: linear-gradient(135deg, rgba(0,0,0,0.96), rgba(37,57,0,0.96)); border: 2px solid #08cb00; border-radius: 24px; padding: 44px 40px 36px; text-align: center; max-width: 380px; width: 90%; box-shadow: 0 0 60px rgba(8,203,0,0.4), 0 0 120px rgba(8,203,0,0.14); animation: box-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both; }
-        @keyframes box-pop { from { opacity: 0; transform: scale(0.55) translateY(24px); } to { opacity: 1; transform: scale(1) translateY(0); } }
         .celeb-glow { position: absolute; inset: -2px; border-radius: 26px; pointer-events: none; animation: glow-pulse 1s ease-in-out infinite alternate; }
-        @keyframes glow-pulse { from { box-shadow: 0 0 20px #08cb00, 0 0 40px rgba(8,203,0,0.2); } to { box-shadow: 0 0 40px #08cb00, 0 0 80px rgba(8,203,0,0.4); } }
         .celeb-icon { font-size: 3.6rem; display: block; margin-bottom: 14px; animation: bounce 0.55s ease infinite alternate; }
         @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-9px); } }
-        .celeb-title { font-family: 'Orbitron', monospace; font-size: 1.5rem; font-weight: 900; color: #08cb00; text-shadow: 0 0 20px #08cb00; margin-bottom: 8px; }
-        .celeb-task { font-size: 0.95rem; color: rgba(238,238,238,0.6); margin-bottom: 22px; line-height: 1.5; font-style: italic; }
+        .celeb-title { font-family: 'Orbitron', monospace; font-size: 1.4rem; font-weight: 900; color: #08cb00; text-shadow: 0 0 20px #08cb00; margin-bottom: 6px; }
+        .celeb-name { font-family: 'Orbitron', monospace; font-size: 1.1rem; font-weight: 700; color: #eee; margin-bottom: 10px; }
+        .celeb-task { font-size: 0.92rem; color: rgba(238,238,238,0.6); margin-bottom: 22px; line-height: 1.5; font-style: italic; }
         .celeb-task strong { color: #eee; font-style: normal; }
         .celeb-close { background: linear-gradient(135deg, #253900, #08cb00); border: none; border-radius: 12px; padding: 13px 34px; color: #000; font-family: 'Orbitron', monospace; font-size: 0.76rem; font-weight: 700; letter-spacing: 0.08em; cursor: pointer; transition: transform 0.15s, box-shadow 0.2s; box-shadow: 0 4px 16px rgba(8,203,0,0.3); }
         .celeb-close:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(8,203,0,0.45); }
@@ -449,6 +521,38 @@ export default function TodoPage() {
         ))}
       </div>
 
+      {/* NAME PROMPT */}
+      {showNamePrompt && (
+        <div className="name-overlay">
+          <div className="name-box">
+            <div className="name-glow" />
+            <span className="name-icon">👋</span>
+            <div className="name-title">WELCOME!</div>
+            <p className="name-sub">
+              What's your name?
+              <br />
+              We'll personalise your experience!
+            </p>
+            <input
+              ref={nameRef}
+              className="name-input"
+              placeholder="Enter your name..."
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveName()}
+              maxLength={30}
+            />
+            <button
+              className="name-btn"
+              onClick={saveName}
+              disabled={!nameInput.trim()}
+            >
+              ⚡ LET'S GO!
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* PAGE */}
       <div className="page">
         {/* Header */}
@@ -459,8 +563,11 @@ export default function TodoPage() {
             <br />
             <span className="accent">LIST</span>
           </h1>
-          <p className="byline">
-            by <span>Nida Batool</span>
+          <p className="welcome-line">
+            Welcome, <span>{displayName}</span>! 👋
+            <button className="change-name-btn" onClick={changeName}>
+              change
+            </button>
           </p>
         </div>
 
@@ -492,15 +599,35 @@ export default function TodoPage() {
             </div>
           </div>
 
-          {/* Search */}
+          {/* Search with button */}
           <div className="search-row">
-            <span className="search-icon">🔍</span>
-            <input
-              className="search-input"
-              placeholder="Search tasks or categories..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <div className="search-wrap">
+              <span className="search-icon">🔍</span>
+              <input
+                className="search-input"
+                placeholder="Search tasks or categories..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && setSearch(searchQuery)}
+              />
+            </div>
+            <button
+              className="search-btn"
+              onClick={() => setSearch(searchQuery)}
+            >
+              SEARCH
+            </button>
+            {search && (
+              <button
+                className="clear-search-btn"
+                onClick={() => {
+                  setSearch("");
+                  setSearchQuery("");
+                }}
+              >
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Add */}
@@ -544,7 +671,6 @@ export default function TodoPage() {
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                title="Due date"
               />
             </div>
           </div>
@@ -647,7 +773,6 @@ export default function TodoPage() {
                       <button
                         className="act-btn edit"
                         onClick={() => saveEdit(todo.id)}
-                        title="Save"
                       >
                         ✓
                       </button>
@@ -658,7 +783,6 @@ export default function TodoPage() {
                           setEditId(todo.id);
                           setEditText(todo.text);
                         }}
-                        title="Edit"
                       >
                         ✎
                       </button>
@@ -666,7 +790,6 @@ export default function TodoPage() {
                     <button
                       className="act-btn del"
                       onClick={() => deleteTodo(todo.id)}
-                      title="Delete"
                     >
                       ✕
                     </button>
@@ -704,12 +827,13 @@ export default function TodoPage() {
             <div className="celeb-glow" />
             <span className="celeb-icon">🎉</span>
             <div className="celeb-title">TASK COMPLETE!</div>
+            <div className="celeb-name">Amazing, {displayName}! 🚀</div>
             <div className="celeb-task">
-              Amazing work, Nida!
+              You crushed it!
               <br />
               <strong>"{celebTask}"</strong>
               <br />
-              is done! 🚀
+              is done!
             </div>
             <button className="celeb-close" onClick={() => setShowCeleb(false)}>
               ⚡ KEEP GOING
